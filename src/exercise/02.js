@@ -27,12 +27,26 @@ function asyncReducer(state, action) {
   }
 }
 
+function useIsMounted() {
+  const isMounted = React.useRef(true);
+
+  React.useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  return isMounted;
+}
+
 function useAsync() {
   const [state, dispatch] = React.useReducer(asyncReducer, {
     status: 'idle',
     data: null,
     error: null,
   });
+
+  const isMounted = useIsMounted();
 
   const run = React.useCallback(promise => {
     if (!promise) {
@@ -42,12 +56,16 @@ function useAsync() {
     dispatch({type: 'pending'});
     promise
       .then(data => {
-        dispatch({type: 'resolved', data});
+        if (isMounted.current) {
+          dispatch({type: 'resolved', data});
+        }
       })
       .catch(error => {
-        dispatch({type: 'rejected', error});
+        if (isMounted.current) {
+          dispatch({type: 'rejected', error});
+        }
       });
-  }, []);
+  }, [isMounted]);
 
   return { ...state, run };
 }
